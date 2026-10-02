@@ -59,8 +59,11 @@ export function eventSubtitle(e: PitchEvent): string {
   return p.join(", ");
 }
 
+/** Moods the player actually set. Feelings left unset are null and ignored. */
+const moodsOf = (evs: PitchEvent[]) => evs.map((e) => e.feel?.mood).filter((m): m is number => m != null);
+
 export function dayMood(s: Snapshot, date: string): number | null {
-  const m = eventsOn(s, date, false).filter((e) => e.feel).map((e) => e.feel!.mood);
+  const m = moodsOf(eventsOn(s, date, false));
   const a = avg(m);
   return a == null ? null : Math.round(a);
 }
@@ -114,7 +117,7 @@ export function painSeries(s: Snapshot, inj: Injury): { date: string; pain: numb
 export function treatmentSessions(s: Snapshot, inj: Injury): number {
   return s.events.filter(
     (e) => e.status === "logged" && (e.type === "physio" || e.type === "bio") && e.date >= inj.startDate && (!inj.recoveredDate || e.date <= inj.recoveredDate) &&
-      (e.type === "bio" || !e.details.injuryId || e.details.injuryId === inj.id),
+      e.details.injuryId === inj.id,
   ).length;
 }
 
@@ -134,6 +137,20 @@ export interface DaySummary {
   events: PitchEvent[];
 }
 
+/** The first day this profile has any data, so we never report history from before it existed. */
+export function firstDataDate(s: Snapshot): string | null {
+  const dates = [
+    ...s.events.filter((e) => e.status === "logged").map((e) => e.date),
+    ...Object.values(s.setLogs).filter((l) => l.count > 0).map((l) => l.date),
+    ...s.injuries.map((i) => i.startDate),
+    ...s.exercises.map((x) => x.addedDate),
+  ];
+  return dates.length ? dates.reduce((a, b) => (a < b ? a : b)) : null;
+}
+
+/** Training load excludes physio and biokineticist treatment time. */
+const trainingMinutes = (e: PitchEvent) => (isTraining(e) ? activeMinutes(e) : 0);
+
 function trainedOn(s: Snapshot, date: string) {
   return eventsOn(s, date, false).some(isTraining);
 }
@@ -141,8 +158,9 @@ function trainedOn(s: Snapshot, date: string) {
 export function summary(s: Snapshot, date: string): DaySummary {
   const evs = eventsOn(s, date, false);
   const minutes = evs.reduce((a, e) => a + activeMinutes(e), 0);
+  const load = evs.reduce((a, e) => a + trainingMinutes(e), 0);
   const feels = evs.filter((e) => e.feel).map((e) => e.feel!);
-  const moodAvg = avg(feels.map((f) => f.mood));
+  const moodAvg = avg(moodsOf(evs));
   const mood = moodAvg == null ? null : Math.round(moodAvg);
   const pain = feels.length ? Math.max(...feels.map((f) => (f.inPain ? f.pain : 0))) : 0;
   const rehab = rehabToday(s, date);
@@ -150,7 +168,16 @@ export function summary(s: Snapshot, date: string): DaySummary {
   let streak = 0;
   while (streak < 30 && trainedOn(s, addDays(date, -streak))) streak++;
 
-  const quiet = [0, 1, 2].every((i) => eventsOn(s, addDays(date, -i), false).length === 0);
+  const soreness = Math.max(0, ...feels.map((f) => f.soreness || 0));
+  const energies = feels.map((f) => f.energy).filter((x) => x > 0);
+  const drained = energies.length > 0 && Math.min(...energies) === 1;
+  // Pain, real soreness or a drained day mean rest comes before "get moving".
+  const needsRest = (pain > 0 && pain < 6) || soreness >= 4 || drained;
+
+  const first = firstDataDate(s);
+  const isNew = !s.events.some((e) => e.status === "logged");
+  // "Quiet" needs 3 days of history to be quiet for.
+  const quiet = !isNew && !!first && addDays(date, -2) >= first && [0, 1, 2].every((i) => eventsOn(s, addDays(date, -i), false).length === 0);
   const nextMatch = s.events.filter((e) => e.type === "match" && e.status === "planned" && e.date > date).sort(byTime)[0];
   const daysToMatch = nextMatch ? daysBetween(date, nextMatch.date) : null;
   const hadMatch = evs.some((e) => e.type === "match");
@@ -159,14 +186,19 @@ export function summary(s: Snapshot, date: string): DaySummary {
   if (pain >= 6) out.push({ kind: "care", priority: 1, title: `Pain at ${pain}/10, ease right off`, body: "Skip hard training tomorrow and tell your physio about it before your next session. Rest tonight." });
   if (hadMatch) out.push({ kind: "rest", priority: 2, title: "Recovery day tomorrow", body: "After a match your legs need 24 to 48 hours. Go for a light walk, stretch, or take the day off." });
   if (streak >= 5) out.push({ kind: "rest", priority: 2, title: "Take a rest day", body: `You've trained ${streak} days in a row. One full rest day keeps you sharp and lowers your injury risk.` });
-  else if (minutes >= 150) out.push({ kind: "rest", priority: 3, title: "Big day, keep tomorrow light", body: `${minutes} active minutes today. Sleep well and keep tomorrow easy.` });
+  else if (load >= 150) out.push({ kind: "rest", priority: 3, title: "Big day, keep tomorrow light", body: `${load} minutes of training today. Sleep well and keep tomorrow easy.` });
+  if (needsRest) {
+    const why = pain > 0 ? `Pain at ${pain}/10` : soreness >= 4 ? "You're sore" : "You're drained";
+    out.push({ kind: "care", priority: 1.5, title: `${why}, take it easy today`, body: "Stick to your rehab and light movement only. Check with your physio if the pain or soreness keeps going." });
+  }
   if (daysToMatch != null && daysToMatch <= 2) {
     const opp = nextMatch!.details.opponent;
     out.push({ kind: "rest", priority: 3, title: daysToMatch === 1 ? "Match tomorrow" : "Match in 2 days", body: `You play ${opp || "your next match"} ${daysToMatch === 1 ? "tomorrow" : "soon"}. Keep training short and sharp, eat well and get to bed early.` });
   }
   if (mood != null && mood < 35) out.push({ kind: "care", priority: 3, title: "A low day", body: "Sleep and an easy evening will help more than extra training. If low days keep coming, talk to someone you trust." });
-  if (quiet && pain < 6) out.push({ kind: "move", priority: 3, title: "It's been quiet for a few days", body: "Nothing logged in 3 days. A 20-minute jog or stick-work session is enough to get going again." });
-  else if (!minutes && !evs.some(isTraining) && pain < 6 && streak === 0 && daysToMatch !== 1 && !hadMatch)
+  if (isNew && date >= (first ?? date)) out.push({ kind: "move", priority: 3, title: "Welcome to Pitchside", body: "Log your first match, practice or session with the + button, or tap Log how I feel." });
+  else if (quiet && pain < 6 && !needsRest) out.push({ kind: "move", priority: 3, title: "It's been quiet for a few days", body: "Nothing logged in 3 days. A 20-minute jog or stick-work session is enough to get going again." });
+  else if (!isNew && !needsRest && !minutes && !evs.some(isTraining) && pain < 6 && streak === 0 && daysToMatch !== 1 && !hadMatch)
     out.push({ kind: "move", priority: 5, title: "Get moving today", body: "No training logged yet. A short session or a walk counts, and your rehab sets are a good start." });
   if (rehab.target && rehab.left > 0) out.push({ kind: "rehab", priority: 4, title: `${rehab.left} rehab set${rehab.left === 1 ? "" : "s"} still to do`, body: `Your physio exercises work best done every day. They take about ${Math.max(5, rehab.left * 2)} minutes.` });
   else if (rehab.target) out.push({ kind: "good", priority: 6, title: "Rehab done for today", body: "All your physio sets are ticked off. That consistency is what gets you back on the pitch." });

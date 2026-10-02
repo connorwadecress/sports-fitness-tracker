@@ -30,7 +30,7 @@ export interface LogDraft {
   time: string;
   planned: boolean;
   checkIn: boolean;
-  details: EventDetails & { newInjuryName?: string; newInjuryPart?: string };
+  details: EventDetails & { newInjuryName?: string; newInjuryPart?: string; minutesText?: string };
   custom: CustomExerciseDraft[];
   feel: Feel;
   reminder: ReminderChoice;
@@ -39,7 +39,7 @@ export interface LogDraft {
 
 export function blankFeel(s: Snapshot): Feel {
   const inj = activeInjuries(s)[0];
-  return { mood: 60, energy: 3, soreness: 2, inPain: false, bodyPart: inj?.bodyPart ?? "Left ankle", pain: 0, note: "" };
+  return { mood: null, energy: 0, soreness: 0, inPain: false, bodyPart: inj?.bodyPart ?? "Left ankle", pain: 0, note: "" };
 }
 
 export function defaultDetails(type: EventType, s: Snapshot): EventDetails {
@@ -84,6 +84,9 @@ export function injuryFromFeel(s: Snapshot, feel: Feel | null, date: string, now
   return { id: uid(), name: `${feel.bodyPart} injury`, bodyPart: feel.bodyPart, startDate: date, status: "active", updatedAt: now };
 }
 
+/** True when the player set something on the feelings step. */
+export const feelIsSet = (f: Feel | null): f is Feel => !!f && (f.mood != null || f.energy > 0 || f.soreness > 0 || f.inPain || !!f.note.trim());
+
 export interface SaveResult {
   puts: Put[];
   newInjury: Injury | null;
@@ -92,11 +95,12 @@ export interface SaveResult {
 
 export function saveLog(s: Snapshot, d: LogDraft, today: string, now = Date.now()): SaveResult {
   const puts: Put[] = [];
-  const feel = d.planned ? null : { ...d.feel, pain: d.feel.inPain ? d.feel.pain : 0 };
+  const raw = d.planned ? null : { ...d.feel, pain: d.feel.inPain ? d.feel.pain : 0, note: d.feel.note.trim() };
+  const feel = feelIsSet(raw) ? raw : null;
   const created: Injury[] = [];
 
   if (d.checkIn) {
-    const ev: PitchEvent = { id: uid(), type: null, date: d.date, time: d.time, status: "logged", details: {}, feel, reminder: "none", isCheckIn: true, updatedAt: now };
+    const ev: PitchEvent = { id: d.id ?? uid(), type: null, date: d.date, time: d.time, status: "logged", details: {}, feel, reminder: "none", isCheckIn: true, updatedAt: now };
     puts.push({ c: "events", record: ev });
     const inj = injuryFromFeel(s, feel, d.date, now);
     if (inj) puts.push({ c: "injuries", record: inj });
@@ -105,6 +109,7 @@ export function saveLog(s: Snapshot, d: LogDraft, today: string, now = Date.now(
 
   const type = d.type!;
   const { newInjuryName, newInjuryPart, ...details } = d.details;
+  delete details.minutesText; // form-only field
   const clean: EventDetails = { ...details };
 
   if ((type === "physio" || type === "bio") && !d.planned) {
@@ -117,12 +122,13 @@ export function saveLog(s: Snapshot, d: LogDraft, today: string, now = Date.now(
       clean.injuryId = inj.id;
     }
     const keys = clean.exerciseIds ?? [];
-    const adds = programmeAdds(s, type, keys, d.custom, today, now, type === "physio" ? clean.injuryId : undefined);
+    const adds = programmeAdds(s, type, keys, d.custom, today, now, clean.injuryId || undefined);
     for (const x of adds) puts.push({ c: "exercises", record: x });
     clean.exerciseIds = [...keys, ...d.custom.map((c) => c.id)];
   } else if (type === "physio" && clean.injuryId === "new") {
     delete clean.injuryId;
   }
+  if (!clean.injuryId) delete clean.injuryId;
 
   const base: PitchEvent = {
     id: d.id ?? uid(), type, date: d.date, time: d.time, status: d.planned ? "planned" : "logged",

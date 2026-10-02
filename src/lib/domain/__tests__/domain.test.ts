@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { addDays, daysBetween, nowIn, shift, weekday } from "../dates";
 import { DEFAULT_REMINDERS } from "../constants";
-import { activeMinutes, eventTitle, rehabToday, summary, weeklyAdherence, painSeries, insights } from "../derive";
+import { activeMinutes, eventTitle, firstDataDate, rehabToday, summary, treatmentSessions, weeklyAdherence, painSeries, insights } from "../derive";
 import { blankFeel, saveLog, setLogPut, type LogDraft, type Put } from "../ops";
 import { dueReminders, inQuietHours } from "../reminders";
 import { sampleData } from "../seed";
-import { toCsv } from "../csv";
+import { toCsvTables } from "../csv";
+import { crc32, zipFiles } from "../zip";
 import type { Collections, PitchEvent, Snapshot } from "../types";
 
 const TODAY = "2026-10-02"; // a Friday
@@ -96,12 +97,40 @@ describe("logging", () => {
 
   it("check-ins never count as training", () => {
     const s = empty();
-    const r = saveLog(s, draft(s, { checkIn: true, type: null }), TODAY);
+    const r = saveLog(s, draft(s, { checkIn: true, type: null, feel: { ...blankFeel(s), mood: 60 } }), TODAY);
     const s2 = applyPuts(s, r.puts);
     const sm = summary(s2, TODAY);
     expect(sm.minutes).toBe(0);
     expect(sm.streak).toBe(0);
     expect(sm.mood).toBe(60);
+  });
+
+  it("doesn't store feelings the player never set", () => {
+    const s = empty();
+    const r = saveLog(s, draft(s, { type: "practice", details: { durationMin: 60, effort: 5, focus: [] } }), TODAY);
+    const e = r.puts.find((p) => p.c === "events")!.record as PitchEvent;
+    expect(e.feel).toBeNull();
+    const s2 = applyPuts(s, r.puts);
+    expect(summary(s2, TODAY).mood).toBeNull();
+  });
+
+  it("updating a check-in keeps the same event", () => {
+    const s = empty();
+    const first = saveLog(s, draft(s, { checkIn: true, type: null, feel: { ...blankFeel(s), mood: 40 } }), TODAY);
+    const s2 = applyPuts(s, first.puts);
+    const again = saveLog(s2, draft(s2, { id: first.firstEventId, checkIn: true, type: null, feel: { ...blankFeel(s2), mood: 80 } }), TODAY);
+    const s3 = applyPuts(s2, again.puts);
+    expect(s3.events).toHaveLength(1);
+    expect(s3.events[0].feel?.mood).toBe(80);
+  });
+
+  it("only counts sessions linked to the injury", () => {
+    let s = empty();
+    s = applyPuts(s, saveLog(s, draft(s, { type: "physio", details: { injuryId: "new", newInjuryName: "Knee", durationMin: 45, notes: "", exerciseIds: [] } }), TODAY).puts);
+    s = applyPuts(s, saveLog(s, draft(s, { type: "bio", details: { durationMin: 60, notes: "", exerciseIds: [] } }), TODAY).puts);
+    expect(treatmentSessions(s, s.injuries[0])).toBe(1);
+    s = applyPuts(s, saveLog(s, draft(s, { type: "bio", details: { injuryId: s.injuries[0].id, durationMin: 60, notes: "", exerciseIds: [] } }), TODAY).puts);
+    expect(treatmentSessions(s, s.injuries[0])).toBe(2);
   });
 });
 
@@ -143,8 +172,41 @@ describe("suggestions", () => {
     expect(titles).toEqual(expect.arrayContaining(["Big day, keep tomorrow light", "Match tomorrow", "A low day"]));
   });
 
+  it("advises rest, not 'get moving', after pain, soreness or a drained day", () => {
+    const s = empty();
+    s.events.push(ev({ date: addDays(TODAY, -5), details: { durationMin: 60 } }));
+    s.events.push(ev({ isCheckIn: true, type: null, feel: { ...blankFeel(s), mood: 50, energy: 1, soreness: 5, inPain: true, bodyPart: "Right ankle", pain: 3 } }));
+    const titles = summary(s, TODAY).suggestions.map((x) => x.title);
+    expect(titles[0]).toBe("Pain at 3/10, take it easy today");
+    expect(titles).not.toContain("Get moving today");
+    expect(titles).not.toContain("It's been quiet for a few days");
+    // Still leads when a match was also played today.
+    s.events.push(ev({ type: "match", details: { ourScore: 1, theirScore: 0, minutesPlayed: 60 } }));
+    expect(summary(s, TODAY).suggestions[0].title).toBe("Pain at 3/10, take it easy today");
+  });
+
+  it("training load excludes treatment time", () => {
+    const s = empty();
+    s.events.push(ev({ type: "physio", details: { durationMin: 90 } }));
+    s.events.push(ev({ type: "bio", details: { durationMin: 90 } }));
+    const sm = summary(s, TODAY);
+    expect(sm.minutes).toBe(180);
+    expect(sm.suggestions.map((x) => x.title)).not.toContain("Big day, keep tomorrow light");
+  });
+
+  it("welcomes a brand-new profile instead of calling it quiet", () => {
+    const s = empty();
+    expect(summary(s, TODAY).suggestions[0].title).toBe("Welcome to Pitchside");
+    expect(firstDataDate(s)).toBeNull();
+    s.events.push(ev({ date: addDays(TODAY, -1), details: { durationMin: 30 } }));
+    // Only 2 days of history, so it can't have been quiet for 3.
+    expect(summary(s, addDays(TODAY, 1)).suggestions.map((x) => x.title)).not.toContain("It's been quiet for a few days");
+  });
+
   it("nudges after 3 quiet days and says balanced when nothing applies", () => {
-    expect(summary(empty(), TODAY).suggestions[0].title).toBe("It's been quiet for a few days");
+    const q = empty();
+    q.events.push(ev({ date: addDays(TODAY, -6), details: { durationMin: 30 } }));
+    expect(summary(q, TODAY).suggestions[0].title).toBe("It's been quiet for a few days");
     const s = empty();
     s.events.push(ev({ details: { durationMin: 60 } }));
     expect(summary(s, TODAY).suggestions[0].title).toBe("Balanced day");
@@ -201,8 +263,18 @@ describe("sample data, injuries and export", () => {
     const ins = insights(s, TODAY);
     expect(ins.record).toEqual({ win: 1, draw: 0, loss: 1 });
     expect(ins.minutesByDay).toHaveLength(7);
-    const csv = toCsv(s);
-    expect(csv).toContain("Won 3–1 against Northview");
-    expect(csv.split("\r\n")[0]).toBe("Events");
+    const csv = toCsvTables(s);
+    expect(Object.keys(csv)).toEqual(["events.csv", "injuries.csv", "exercises.csv", "sets-done.csv"]);
+    expect(csv["events.csv"]).toContain("Won 3–1 against Northview");
+    expect(csv["injuries.csv"].split("\r\n")[0]).toBe("name,body part,start date,status,recovered date");
+  });
+
+  it("writes a valid zip", () => {
+    expect(crc32(new TextEncoder().encode("hello"))).toBe(0x3610a686);
+    const z = zipFiles({ "a.csv": "x,y\r\n", "b.csv": "z\r\n" });
+    const v = new DataView(z.buffer);
+    expect(v.getUint32(0, true)).toBe(0x04034b50);
+    expect(v.getUint32(z.length - 22, true)).toBe(0x06054b50);
+    expect(v.getUint16(z.length - 12, true)).toBe(2);
   });
 });

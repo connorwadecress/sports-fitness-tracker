@@ -45,10 +45,11 @@ export interface SessionDetails {
 
 export type EventDetails = Partial<MatchDetails & PracticeDetails & OwnTrainingDetails & SessionDetails>;
 
+/** Anything the player didn't set stays empty: mood null, energy and soreness 0. */
 export interface Feel {
-  mood: number; // 0–100
-  energy: number; // 1–5
-  soreness: number; // 1–5
+  mood: number | null; // 0–100
+  energy: number; // 1–5, 0 = not set
+  soreness: number; // 1–5, 0 = not set
   inPain: boolean;
   bodyPart: string;
   pain: number; // 0–10
