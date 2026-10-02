@@ -24,11 +24,19 @@ No GitHub Actions are needed for deploys. Vercel builds straight from the repo.
 
 ## Environment variables
 
-None yet. When we add some (database URL, auth secrets, and so on):
+Set in Vercel for Production, Preview and Development. Pull them locally with `vercel env pull .env.local`, and never commit `.env*` files.
 
-- Add them in Vercel → Project → Settings → Environment Variables, or run `vercel env add`.
-- Pull them locally with `vercel env pull .env.local`.
-- Never commit `.env*` files. They're already in `.gitignore`.
+| Name | Source |
+| --- | --- |
+| `DATABASE_URL` and the other `PG*` / `POSTGRES_*` vars | Added by the Neon integration (`pitchside-db`, free plan, `fra1`) |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Generated once with the `web-push` package's `generateVAPIDKeys()`. Changing them breaks existing push subscriptions. |
+| `CRON_SECRET` | Random string. Must match the GitHub secret of the same name. |
+
+The database schema is created automatically on the first request.
+
+## Reminder schedule
+
+`.github/workflows/reminders.yml` runs every 10 minutes and calls `/api/cron/reminders`. It needs two GitHub Actions secrets: `APP_URL` (the production URL) and `CRON_SECRET`. Run it by hand from the Actions tab with **Run workflow**.
 
 ## Local Vercel CLI
 

@@ -4,25 +4,54 @@ A lightweight record of architecture decisions. Add newer entries at the top.
 
 ---
 
-## 2026-10-02: Next.js on Vercel, mobile-first web app (not a native app)
+## 2026-10-02: Reminders sent by a GitHub Actions schedule
 
-**Context:** We need a public app that people use mainly from their phones. Requirements (BRD) are still to come.
+**Context:** Reminders need minute-level timing (1 hour before an event, 17:00 rehab, 20:30 summary). Vercel Hobby cron jobs only run once a day.
 
-**Decision:** A responsive web app built with Next.js (App Router, TypeScript, Tailwind v4) and hosted on Vercel. It ships a web app manifest so people can install it to their home screen.
+**Decision:** `.github/workflows/reminders.yml` calls `GET /api/cron/reminders` every 10 minutes with `Authorization: Bearer $CRON_SECRET`. The endpoint works out what's due in each player's own time zone (looking back 90 minutes to absorb GitHub's schedule delays), claims each reminder key in `notifications_sent` before sending, caps sends at 3 a day and skips quiet hours (21:30 to 06:30).
 
-**Why:**
-- One codebase reaches iOS and Android with no app store review.
-- It's easy to share by link, which suits a public site.
-- Vercel gives us preview deploys per PR, so we can test on a real phone before merging.
-- We can add PWA/offline support, or wrap it in a native shell, later if the BRD needs it.
+**Why:** Free for a public repo, no extra provider. The same `dueReminders()` function drives the in-app banner fallback, so push and in-app always agree.
 
-**Consequences:** Native-only features (background GPS, deep HealthKit access) are limited. Revisit this if the BRD needs them.
+**Consequences:** GitHub can delay scheduled runs by several minutes at busy times. Fine for reminders; revisit (Upstash QStash schedules are a free option) if timing needs to be tighter.
 
 ---
 
-## Pending (waiting on the BRD)
+## 2026-10-02: Local-first data with a sync API
 
-- Database / storage
-- Authentication
-- Offline support
-- Third-party integrations (Strava, Garmin, Apple Health, Google Fit)
+**Context:** The spec needs offline logging and set counting, cloud storage per user, and a sub-60-second log flow.
+
+**Decision:** The browser holds the whole dataset in IndexedDB (`src/lib/client/store.ts`). Every write lands locally first and is queued. `POST /api/sync` pushes queued records and pulls anything newer than the client's cursor. Conflicts resolve last-write-wins per record (`updatedAt`), and deletes are tombstones. The server stores records as JSONB in one `records` table keyed by user, collection and id, with a global sequence for cursors.
+
+**Why:** Logging is instant and works with no signal. One generic table keeps the server tiny, and the data model can evolve without migrations. Data volume for one player is small (well under the free tier).
+
+**Consequences:** Two devices editing the same record offline: the later edit wins. Acceptable for one user.
+
+---
+
+## 2026-10-02: Neon Postgres, own email-and-password auth
+
+**Decision:** Neon Postgres (Vercel Marketplace, free plan, `fra1` region, closest to South Africa), with functions pinned to `fra1` in `vercel.json`. Auth is email and password: scrypt hashes, random session tokens stored hashed, an httpOnly cookie, same-origin checks on writes, and a 10-attempts-per-15-minutes login limit.
+
+**Why:** Free, no email provider needed, nothing third-party touching a minor's health data. The schema is created on first request (`src/lib/server/db.ts`), so there is no migration step.
+
+**Consequences:** No self-service password reset yet (it would need an email provider such as Resend). Neon's free tier pauses after inactivity, so the first request after a pause is a little slower.
+
+---
+
+## 2026-10-02: Single static app shell
+
+**Decision:** The app is one client-rendered route (`/`), with tabs as hash routes (`#calendar`, `#rehab`, …) and sheets as client state. A hand-written service worker (`public/sw.js`) caches the shell and static assets and handles push.
+
+**Why:** A single static page is the simplest thing a service worker can serve fully offline. It also means notification deep links (`#log=<id>`, `#summary`, `#checkin`) just work.
+
+---
+
+## 2026-10-02: Next.js on Vercel, mobile-first web app (not a native app)
+
+**Context:** We need a public app that people use mainly from their phones.
+
+**Decision:** A responsive web app built with Next.js (App Router, TypeScript, Tailwind v4) and hosted on Vercel, installable as a PWA.
+
+**Why:** One codebase for iOS and Android, no app store review, and preview deploys per PR.
+
+**Consequences:** Web push on iPhone only works once the app is added to the home screen. The Reminders sheet explains this.

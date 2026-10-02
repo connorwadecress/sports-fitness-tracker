@@ -1,39 +1,51 @@
-# Sports Fitness Tracker
+# Pitchside
 
-A public, mobile-first web app for tracking sports and fitness training. Most people will use it from their phones, so every screen is designed for a small touchscreen first.
+A mobile-first hockey and recovery tracker. Log matches, practices, own training, physio and biokineticist sessions in under a minute, track injuries and rehab sets, and get a daily summary with suggestions on when to rest and when to do more.
 
-> **Status:** Scaffold only. Product scope is waiting on the BRD. See [docs/](docs/).
+**Live:** https://sports-fitness-tracker.vercel.app
 
 ## Stack
 
-- [Next.js](https://nextjs.org) (App Router, TypeScript)
-- [Tailwind CSS](https://tailwindcss.com) v4
-- Hosted on [Vercel](https://vercel.com). Pushes to `main` deploy to production, and pull requests get preview URLs.
+- [Next.js](https://nextjs.org) 16 (App Router, TypeScript) on [Vercel](https://vercel.com), functions in `fra1`
+- [Neon](https://neon.tech) Postgres (Vercel Marketplace, free plan)
+- Local-first: IndexedDB on the device, synced through `/api/sync`
+- Web push (VAPID), sent by a GitHub Actions schedule
+- Installable PWA with a service worker for offline use
 
 ## Getting started
 
 ```bash
 npm install
+vercel env pull .env.local   # DATABASE_URL, VAPID keys, CRON_SECRET
 npm run dev
 ```
 
-Open http://localhost:3000. To test on your phone, use the network URL that `next dev` prints (your phone needs to be on the same Wi-Fi). You can also open a PR and use the Vercel preview link.
+Open http://localhost:3000. Without `DATABASE_URL` the app still runs in "this device only" mode. The service worker is off in development; add `?sw=1` to the URL to test it.
 
 ## Scripts
 
-| Command         | What it does                 |
-| --------------- | ---------------------------- |
-| `npm run dev`   | Start the dev server         |
-| `npm run build` | Make a production build      |
-| `npm run start` | Serve the production build   |
-| `npm run lint`  | Run ESLint                   |
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Start the dev server |
+| `npm run build` | Make a production build |
+| `npm test` | Run the unit tests (suggestion rules, reminders, logging) |
+| `npm run typecheck` | Type-check |
+| `npm run lint` | Run ESLint |
+
+## Environment variables
+
+| Name | Used for |
+| --- | --- |
+| `DATABASE_URL` | Neon Postgres (added by the Neon integration) |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Web push |
+| `CRON_SECRET` | Protects `/api/cron/reminders` (also a GitHub Actions secret, with `APP_URL`) |
 
 ## Docs
 
 | File | Purpose |
 | --- | --- |
-| [docs/PROJECT_NOTES.md](docs/PROJECT_NOTES.md) | Project overview, status, and open questions |
-| [docs/MOBILE_FIRST.md](docs/MOBILE_FIRST.md) | Mobile-first design and build rules |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | How GitHub and Vercel are wired together |
-| [docs/DECISIONS.md](docs/DECISIONS.md) | Log of architecture decisions |
-| [docs/BRD.md](docs/BRD.md) | Business Requirements Document (placeholder for now) |
+| [docs/PROJECT_NOTES.md](docs/PROJECT_NOTES.md) | Overview, architecture and known limits |
+| [docs/BRD.md](docs/BRD.md) | Requirements traceability |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | Architecture decisions |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | How GitHub, Vercel, Neon and the reminder schedule fit together |
+| [docs/MOBILE_FIRST.md](docs/MOBILE_FIRST.md) | Mobile-first build rules |

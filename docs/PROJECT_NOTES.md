@@ -4,46 +4,40 @@ _Last updated: 2026-10-02_
 
 ## What this is
 
-A **public website for tracking sports and fitness**. People will mainly use it **on their phones**, so the mobile experience comes first and desktop is secondary.
+**Pitchside**: a mobile-first hockey and recovery tracker for a Grade 11 field hockey player managing an injury. Log matches, practices, own training, physio and biokineticist sessions. Track injuries and rehab sets, and get a daily summary that says when to rest and when to do more.
 
 ## Current status
 
-| Area | Status |
-| --- | --- |
-| Repo | Public on GitHub |
-| Hosting | Vercel. `main` deploys to production and PRs get previews |
-| App | Next.js scaffold with a placeholder landing page |
-| Requirements | **Waiting on the BRD** |
-| Data / auth / storage | Not chosen yet. Depends on the BRD |
+All four releases in the plan are built and live:
 
-## Guiding principles
+| Release | Scope | Status |
+| --- | --- | --- |
+| 1, core logging | Five event types, feelings, injuries, Today, calendar view | Live |
+| 2, rehab | Picture library, custom exercises with photos, set counting, adherence | Live |
+| 3, planning and reminders | Plan events, weekly repeat, web push, in-app fallback | Live |
+| 4, coaching | Rule-based daily summary, Insights | Live |
 
-1. **Mobile first.** Design for about 375px wide first, then scale up. See [MOBILE_FIRST.md](MOBILE_FIRST.md).
-2. **Fast on mobile networks.** Keep JS bundles small and use server components by default.
-3. **Public and accessible.** Anyone can use it, so build to WCAG 2.2 AA from day one.
-4. **Installable.** Ship a web app manifest so people can add it to their home screen. Offline support can come later if the BRD needs it.
-5. **Privacy-aware.** Fitness and health data is sensitive. Collect only what we need. If we have South African users, POPIA applies, and GDPR applies if we have EU users.
+## How it fits together
 
-## Open questions (for the BRD)
+```
+Phone (PWA)                                  Vercel (fra1)                  Neon Postgres (fra1)
+┌─────────────────────────────┐   /api/sync  ┌───────────────────────┐      ┌──────────────────┐
+│ React app (one route "/")   │ ───────────▶ │ Route handlers        │ ───▶ │ users, sessions, │
+│ IndexedDB store + sync queue│ ◀─────────── │ auth, sync, push,     │      │ records (JSONB), │
+│ Service worker: offline,    │   web push   │ account, cron         │      │ push_subscriptions│
+│ push notifications          │ ◀─────────── │                       │      │ notifications_sent│
+└─────────────────────────────┘              └───────────▲───────────┘      └──────────────────┘
+                                                         │ every 10 min
+                                              GitHub Actions (reminders.yml)
+```
 
-- **Users:** Who are they? Individual athletes, coaches, teams, clubs?
-- **Sports:** Which sports or activity types are in scope at launch?
-- **Accounts:** Is sign-up required, or can people use it anonymously with an optional account?
-- **Data:** What do we track (workouts, sets/reps, distance, time, heart rate, GPS)? Is it manual entry, or do we import from wearables or apps like Strava, Garmin, Apple Health, or Google Fit?
-- **Social:** Will there be sharing, leaderboards, friends, or teams?
-- **Offline:** Do people need to log workouts without signal (for example at the gym or on a trail)?
-- **Monetisation:** Free, freemium, ads, or subscriptions?
-- **Units and locale:** Metric only, or metric and imperial? Which languages?
-- **Launch:** Is there a target date, and what is the MVP scope?
+- `src/lib/domain/`: pure, shared logic (types, dates, suggestion rules, reminder rules, save operations, CSV, sample data). Unit tested.
+- `src/lib/client/`: the IndexedDB store and sync engine, push helpers, image resizing.
+- `src/lib/server/`: Neon client and schema, auth, web push.
+- `src/components/`: screens and bottom sheets, ported from the clickable prototype.
 
-## Likely technical decisions after the BRD
+## Known limits and next steps
 
-These choices are deliberately on hold:
-
-- **Database:** Postgres through the Vercel Marketplace (such as Neon or Supabase) is the likely default.
-- **Auth:** Something like Clerk, Auth.js, or Supabase Auth.
-- **Offline / PWA:** A service worker and local storage if offline logging is needed.
-- **Charts:** For progress and trend views.
-- **Analytics:** Vercel Analytics and Speed Insights to track real-user Core Web Vitals on mobile.
-
-Record each choice in [DECISIONS.md](DECISIONS.md) when it's made.
+- **No password reset.** Needs an email provider (for example Resend's free tier). Until then, reset a password by deleting the user row in Neon and signing up again.
+- **iPhone push** only works after adding the app to the home screen (an iOS rule).
+- **Ideas from the spec:** a read-only physio share link, fixture import, AI-written summaries.
