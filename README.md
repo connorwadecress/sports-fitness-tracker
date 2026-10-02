@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sports Fitness Tracker
 
-## Getting Started
+A public, mobile-first web app for tracking sports and fitness training. Most people will use it from their phones, so every screen is designed for a small touchscreen first.
 
-First, run the development server:
+> **Status:** Scaffold only. Product scope is waiting on the BRD. See [docs/](docs/).
+
+## Stack
+
+- [Next.js](https://nextjs.org) (App Router, TypeScript)
+- [Tailwind CSS](https://tailwindcss.com) v4
+- Hosted on [Vercel](https://vercel.com). Pushes to `main` deploy to production, and pull requests get preview URLs.
+
+## Getting started
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. To test on your phone, use the network URL that `next dev` prints (your phone needs to be on the same Wi-Fi). You can also open a PR and use the Vercel preview link.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command         | What it does                 |
+| --------------- | ---------------------------- |
+| `npm run dev`   | Start the dev server         |
+| `npm run build` | Make a production build      |
+| `npm run start` | Serve the production build   |
+| `npm run lint`  | Run ESLint                   |
 
-## Learn More
+## Docs
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| File | Purpose |
+| --- | --- |
+| [docs/PROJECT_NOTES.md](docs/PROJECT_NOTES.md) | Project overview, status, and open questions |
+| [docs/MOBILE_FIRST.md](docs/MOBILE_FIRST.md) | Mobile-first design and build rules |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | How GitHub and Vercel are wired together |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | Log of architecture decisions |
+| [docs/BRD.md](docs/BRD.md) | Business Requirements Document (placeholder for now) |
