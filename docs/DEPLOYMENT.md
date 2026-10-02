@@ -3,7 +3,8 @@
 ## Setup
 
 - **Repo:** https://github.com/connorwadecress/sports-fitness-tracker (public)
-- **Host:** Vercel project `sports-fitness-tracker`, connected to the GitHub repo through the Vercel GitHub integration.
+- **Production URL:** https://sports-fitness-tracker.vercel.app
+- **Host:** Vercel project `connorwadecress-projects/sports-fitness-tracker`, connected to the GitHub repo through the Vercel GitHub integration.
 
 ## How deploys happen
 
