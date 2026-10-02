@@ -22,6 +22,8 @@ export function RehabScreen() {
         <h1 className="display">Rehab</h1>
         <button className="pillbtn pill-ghost" type="button" onClick={() => open({ kind: "addExercise" })}>Add exercise</button>
       </div>
+      <div className="cols">
+      <div className="col">
       {act.length
         ? act.map((i) => <InjuryCard key={i.id} inj={i} s={s} today={today} />)
         : <div className="empty">No active injuries. Nice.<br />If you pick up a knock, switch it on when you log how you feel.</div>}
@@ -32,6 +34,9 @@ export function RehabScreen() {
         <p className="small muted" style={{ margin: "10px 0 0" }}>Today: {reh.done} of {reh.target} daily sets. Strength exercises from your biokineticist count 3 days a week.</p>
       </div>
 
+      {past.length > 0 && <PastInjuries past={past} />}
+      </div>
+      <div className="col col-wide">
       {physio.length > 0 && (
         <>
           <h2 className="h2"><span className="src"><i style={{ background: "var(--physio)" }} />From your physio</span><small>every day</small></h2>
@@ -51,18 +56,23 @@ export function RehabScreen() {
         </>
       )}
 
-      {past.length > 0 && (
-        <>
-          <h2 className="h2">Past injuries</h2>
-          <div className="list">
-            {past.map((i) => (
-              <div key={i.id} className="row">
-                <span className="txt"><span className="t">{i.name}</span><span className="s">{short(i.startDate)} to {i.recoveredDate ? short(i.recoveredDate) : "?"}</span></span>
-              </div>
-            ))}
+      </div>
+      </div>
+    </>
+  );
+}
+
+function PastInjuries({ past }: { past: Injury[] }) {
+  return (
+    <>
+      <h2 className="h2">Past injuries</h2>
+      <div className="list">
+        {past.map((i) => (
+          <div key={i.id} className="row">
+            <span className="txt"><span className="t">{i.name}</span><span className="s">{short(i.startDate)} to {i.recoveredDate ? short(i.recoveredDate) : "?"}</span></span>
           </div>
-        </>
-      )}
+        ))}
+      </div>
     </>
   );
 }

@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = { title: "Privacy and safety · Pitchside" };
+export const metadata: Metadata = { title: "Privacy and safety" };
 
 export default function Privacy() {
   return (
     <div className="stage">
       <div className="device">
-        <main className="screen" style={{ paddingBottom: 40 }}>
+        <main className="screen prose" style={{ paddingBottom: 40 }}>
           <Link href="/" className="logit" style={{ textDecoration: "none", display: "inline-block", marginBottom: 16 }}>Back to Pitchside</Link>
           <h1 className="display">Privacy and safety</h1>
 

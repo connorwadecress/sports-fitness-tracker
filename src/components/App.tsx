@@ -11,7 +11,8 @@ import { CalendarScreen } from "./screens/Calendar";
 import { RehabScreen } from "./screens/Rehab";
 import { InsightsScreen } from "./screens/Insights";
 import { load, markSignedInAgain, startSync, useStore, getState } from "@/lib/client/store";
-import { registerServiceWorker } from "@/lib/client/push";
+import { enablePush, registerServiceWorker, wantsPushPrompt } from "@/lib/client/push";
+import { listenForInstall } from "@/lib/client/install";
 import { deviceNow, parts } from "@/lib/domain/dates";
 
 const TABS: Tab[] = ["today", "calendar", "rehab", "insights"];
@@ -42,7 +43,7 @@ export default function App() {
   const screenRef = useRef<HTMLElement>(null);
   const toastTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  useEffect(() => { void load(); registerServiceWorker(); }, []);
+  useEffect(() => { void load(); registerServiceWorker(); listenForInstall(); }, []);
 
   // Confirm the session with the server when online; recover from expired sessions.
   useEffect(() => {
@@ -78,9 +79,17 @@ export default function App() {
 
   const api: AppApi = useMemo(() => ({
     today, now, tab, go, toast, calendar, setCalendar, serverConfigured,
-    open: (s) => setSheet(s),
+    open: (s) => {
+      // First visit to Reminders asks for notification permission (US-5.1); must run in the tap.
+      if (s.kind === "reminders" && getState().meta.mode === "account" && wantsPushPrompt()) void enablePush();
+      setSheet(s);
+    },
     close: () => setSheet(null),
   }), [today, now, tab, go, toast, calendar, serverConfigured]);
+
+  useEffect(() => {
+    document.title = tab === "today" ? "Pitchside: hockey and recovery tracker" : `${TAB_LABELS[tab]} · Pitchside`;
+  }, [tab]);
 
   // Hash routes: tabs, plus deep links from notifications (#log=<id>, #summary, #checkin).
   const handleHash = useCallback((hash: string) => {
@@ -132,8 +141,9 @@ export default function App() {
   return (
     <AppContext.Provider value={api}>
       <div className="stage">
-        <div className="device">
+        <div className="device app">
           <Banner item={banner} />
+          <Sidebar tab={tab} go={go} inert={modal} onLog={() => setSheet({ kind: "log" })} onReminders={() => api.open({ kind: "reminders" })} onAccount={() => setSheet({ kind: "account" })} signedOut={store.syncStatus === "signedOut"} />
           <main className="screen" ref={screenRef} inert={modal} aria-label={tab}>
             {tab === "today" && <TodayScreen />}
             {tab === "calendar" && <CalendarScreen />}
@@ -152,6 +162,29 @@ export default function App() {
         </div>
       </div>
     </AppContext.Provider>
+  );
+}
+
+const TAB_LABELS: Record<Tab, string> = { today: "Today", calendar: "Calendar", rehab: "Rehab", insights: "Insights" };
+
+/** Desktop navigation. Hidden on phones, where the bottom tab bar is used instead. */
+function Sidebar({ tab, go, inert, onLog, onReminders, onAccount, signedOut }: { tab: Tab; go: (t: Tab) => void; inert: boolean; onLog: () => void; onReminders: () => void; onAccount: () => void; signedOut: boolean }) {
+  return (
+    <aside className="sidebar" inert={inert}>
+      <div className="brand"><span className="mark" aria-hidden="true">P</span>Pitchside</div>
+      <button className="pillbtn pill-on-turf sidelog" type="button" onClick={onLog}><Icon name="plus" strokeWidth={2.6} />Log an event</button>
+      <nav aria-label="Main" className="sidenav">
+        {TABS.map((t) => (
+          <button key={t} type="button" className="sidetab" aria-current={tab === t ? "page" : undefined} onClick={() => go(t)}>
+            <Icon name={t} />{TAB_LABELS[t]}
+          </button>
+        ))}
+      </nav>
+      <div className="sidefoot">
+        <button type="button" className="sidetab" onClick={onReminders}><Icon name="bell" />Reminders</button>
+        <button type="button" className="sidetab" onClick={onAccount}><Icon name="user" />You and your data{signedOut && <span className="dot" aria-label="signed out" />}</button>
+      </div>
+    </aside>
   );
 }
 

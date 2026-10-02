@@ -26,6 +26,8 @@ export function InsightsScreen() {
         <div className="kpi"><span className="num">{ins.adherence}%</span><span className="l">rehab done this week</span></div>
       </div>
 
+      <div className="cols">
+      <div className="col col-wide">
       <h2 className="h2">Active minutes <small>last 7 days</small></h2>
       <div className="panel">
         <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`Active minutes per day. ${chartLabel}`}>
@@ -62,6 +64,8 @@ export function InsightsScreen() {
         ))}
       </div>
 
+      </div>
+      <div className="col">
       <h2 className="h2">Past summaries</h2>
       <div className="list">
         {history.map((d) => {
@@ -73,6 +77,8 @@ export function InsightsScreen() {
             </button>
           );
         })}
+      </div>
+      </div>
       </div>
     </>
   );

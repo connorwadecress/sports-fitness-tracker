@@ -30,7 +30,7 @@ export function TodayScreen() {
           <p className="sub">{greet}{name ? `, ${name}` : ""}</p>
           <h1 className="display">{nice(today)}</h1>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="mobile-only" style={{ display: "flex", gap: 8 }}>
           <button className="iconbtn" type="button" onClick={() => open({ kind: "reminders" })} aria-label="Reminders"><Icon name="bell" /></button>
           <button className="iconbtn" type="button" onClick={() => open({ kind: "account" })} aria-label={syncStatus === "signedOut" ? "Account, signed out" : "Account and data"}>
             <Icon name="user" />{syncStatus === "signedOut" && <span className="badge" />}
@@ -38,6 +38,8 @@ export function TodayScreen() {
         </div>
       </div>
 
+      <div className="cols">
+      <div className="col">
       <section className="daycard" aria-label="Today so far">
         <div className="shape"><FeelShape mood={sm.mood} size={84} /></div>
         <div>
@@ -72,9 +74,12 @@ export function TodayScreen() {
       <h2 className="h2">Logged today <small>{logged.length ? `${logged.length} event${logged.length > 1 ? "s" : ""}` : ""}</small></h2>
       {logged.length
         ? <div className="list">{logged.map((e) => <EventRow key={e.id} e={e} s={s} />)}</div>
-        : <div className="empty">Nothing logged yet today.<br />Tap + after a match, practice or session.</div>}
+        : <div className="empty">Nothing logged yet today.<br />Log a match, practice or session after it happens.</div>}
 
+      </div>
+      <div className="col">
       {exercises.length > 0 && (
+
         <>
           <h2 className="h2">Rehab today <small><button className="logit" type="button" onClick={() => go("rehab")}>See all</button></small></h2>
           <div className="rehabstrip">{exercises.map((x) => <ExerciseCard key={x.id} ex={x} s={s} today={today} />)}</div>
@@ -85,6 +90,8 @@ export function TodayScreen() {
       {upcoming.length
         ? <div className="list">{upcoming.map((e) => <EventRow key={e.id} e={e} s={s} sub={`${rel(e.date, today)}, ${e.time}`} />)}</div>
         : <div className="empty">Nothing planned. Add practices and matches in the calendar to get reminders.</div>}
+      </div>
+      </div>
     </>
   );
 }

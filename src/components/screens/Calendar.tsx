@@ -27,6 +27,8 @@ export function CalendarScreen() {
         <h1 className="display">Calendar</h1>
         <button className="pillbtn pill-turf" type="button" onClick={() => open({ kind: "log", mode: "plan" })}>Plan event</button>
       </div>
+      <div className="cols cal-cols">
+      <div className="col">
       <div className="calhead">
         <button className="iconbtn" type="button" onClick={() => move(-1)} aria-label="Previous month"><Icon name="back" strokeWidth={2.2} /></button>
         <b style={{ fontSize: 18, fontStretch: "110%" }} aria-live="polite">{MONTHS[m]} {y}</b>
@@ -57,6 +59,8 @@ export function CalendarScreen() {
         <span><i style={{ border: "1.5px solid var(--muted)" }} />Planned</span>
       </div>
 
+      </div>
+      <div className="col">
       <h2 className="h2">{rel(sel, today)} {sel >= today && <small><button className="logit" type="button" onClick={() => open({ kind: "log", mode: "plan", date: sel })}>Add</button></small>}</h2>
       {selEvents.length
         ? <div className="list">{selEvents.map((e) => <EventRow key={e.id} e={e} s={s} />)}</div>
@@ -66,6 +70,8 @@ export function CalendarScreen() {
           <button className="pillbtn pill-ghost" style={{ width: "100%" }} type="button" onClick={() => open({ kind: "summary", date: sel })}>View daily summary</button>
         </div>
       )}
+      </div>
+      </div>
     </>
   );
 }
