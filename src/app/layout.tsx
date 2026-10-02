@@ -1,25 +1,22 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Archivo } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const archivo = Archivo({
+  variable: "--font-archivo",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  axes: ["wdth"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Sports Fitness Tracker",
-  description: "Track your training, anywhere — built for your phone.",
-  appleWebApp: {
-    capable: true,
-    title: "Fitness Tracker",
-    statusBarStyle: "default",
-  },
+  title: "Pitchside",
+  description: "Hockey and recovery tracker: log matches, training and physio, follow your rehab, and get a daily summary.",
+  applicationName: "Pitchside",
+  appleWebApp: { capable: true, title: "Pitchside", statusBarStyle: "black-translucent" },
+  icons: { icon: "/icons/192", apple: "/icons/apple" },
+  formatDetection: { telephone: false },
+  robots: { index: true, follow: true },
 };
 
 export const viewport: Viewport = {
@@ -27,18 +24,21 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: light)", color: "#1B3FAE" },
+    { media: "(prefers-color-scheme: dark)", color: "#0A1230" },
   ],
 };
 
+// Apply the saved theme before first paint so there's no flash.
+const themeScript = `try{var t=localStorage.getItem("pitchside-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en-ZA" className={archivo.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body>{children}</body>
     </html>
   );
 }
