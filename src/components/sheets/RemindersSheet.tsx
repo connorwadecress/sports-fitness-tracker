@@ -16,7 +16,13 @@ export function RemindersSheet() {
   const [busy, setBusy] = useState(false);
   const setR = (patch: Partial<ReminderSettings>) => updateSettings({ reminders: { ...r, ...patch } });
 
-  useEffect(() => { void pushState().then(setPush); }, []);
+  // Re-check while open: the permission prompt may be answered after the sheet opens.
+  useEffect(() => {
+    const check = () => void pushState().then(setPush);
+    check();
+    const id = setInterval(check, 2000);
+    return () => clearInterval(id);
+  }, []);
 
   const turnOn = async () => {
     setBusy(true);

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "../context";
 import { SheetHead } from "../ui";
 import { apply, clearDevice, sync, updateSettings, useStore } from "@/lib/client/store";
-import { currentEndpoint, disablePush } from "@/lib/client/push";
+import { currentEndpoint, disablePush, isStandalone } from "@/lib/client/push";
+import { canPromptInstall, onInstallChange, promptInstall } from "@/lib/client/install";
 import { toCsv } from "@/lib/domain/csv";
 import { sampleData } from "@/lib/domain/seed";
 
@@ -90,6 +91,8 @@ export function AccountSheet() {
           {meta.mode !== "account" && serverConfigured && <p className="small muted" style={{ margin: "10px 0 0" }}>An account backs up your data and syncs it between devices. What you&apos;ve logged here comes with you.</p>}
         </div>
 
+        <InstallCard />
+
         <div className="field">
           <label htmlFor="pname">Your first name</label>
           <input id="pname" className="inp" value={name} maxLength={40} placeholder="Optional, for the greeting" onChange={(e) => setName(e.target.value)} onBlur={() => name !== (s.settings.name ?? "") && updateSettings({ name: name.trim() })} />
@@ -116,5 +119,28 @@ export function AccountSheet() {
         </p>
       </div>
     </>
+  );
+}
+
+function InstallCard() {
+  const [state, setState] = useState<"hidden" | "prompt" | "ios">("hidden");
+  useEffect(() => {
+    const update = () => {
+      if (isStandalone()) setState("hidden");
+      else if (canPromptInstall()) setState("prompt");
+      else if (/iPad|iPhone|iPod/.test(navigator.userAgent)) setState("ios");
+      else setState("hidden");
+    };
+    update();
+    return onInstallChange(update);
+  }, []);
+  if (state === "hidden") return null;
+  return (
+    <div className="hint" style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start" }}>
+      <span><b>Install Pitchside.</b> It opens like an app, works offline and can send reminders.</span>
+      {state === "prompt"
+        ? <button className="pillbtn pill-turf" type="button" onClick={() => void promptInstall()}>Add to home screen</button>
+        : <span>On iPhone: tap the Share button in Safari, then <b>Add to Home Screen</b>.</span>}
+    </div>
   );
 }
