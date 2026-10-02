@@ -45,7 +45,10 @@ Open http://localhost:3000. Without `DATABASE_URL` the app still runs in "this d
 | File | Purpose |
 | --- | --- |
 | [docs/PROJECT_NOTES.md](docs/PROJECT_NOTES.md) | Overview, architecture and known limits |
-| [docs/BRD.md](docs/BRD.md) | Requirements traceability |
+| [docs/BRD.md](docs/BRD.md) | Business requirements document |
+| [docs/USER_STORIES.md](docs/USER_STORIES.md) | User story specification |
+| [docs/TRACEABILITY.md](docs/TRACEABILITY.md) | Where each requirement is built |
+| [docs/prototype/](docs/prototype/pitchside-prototype.html) | Clickable HTML prototype (the design reference) |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Architecture decisions |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | How GitHub, Vercel, Neon and the reminder schedule fit together |
 | [docs/MOBILE_FIRST.md](docs/MOBILE_FIRST.md) | Mobile-first build rules |
