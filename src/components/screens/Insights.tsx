@@ -5,7 +5,7 @@ import { FeelShape } from "../ui";
 import { useStore } from "@/lib/client/store";
 import { TYPES, TYPE_KEYS } from "@/lib/domain/constants";
 import { addDays, dayLetter, nice, rel } from "@/lib/domain/dates";
-import { insights, summary } from "@/lib/domain/derive";
+import { firstDataDate, insights, summary } from "@/lib/domain/derive";
 
 export function InsightsScreen() {
   const { snapshot: s } = useStore();
@@ -13,7 +13,9 @@ export function InsightsScreen() {
   const ins = insights(s, today);
   const W = 330, H = 150, bw = 26, gap = (W - 7 * bw) / 7;
   const max = Math.max(120, ...ins.minutesByDay.map((d) => d.total));
-  const history = Array.from({ length: 5 }, (_, i) => addDays(today, -i - 1));
+  // Only days since the profile has data; nothing invented from before it existed.
+  const first = firstDataDate(s);
+  const history = Array.from({ length: 5 }, (_, i) => addDays(today, -i - 1)).filter((d) => first != null && d >= first);
   const { win, draw, loss } = ins.record;
   const chartLabel = ins.minutesByDay.map((d) => `${nice(d.date)}: ${d.total} minutes`).join("; ");
 
@@ -22,8 +24,8 @@ export function InsightsScreen() {
       <div className="topbar"><h1 className="display">Insights</h1></div>
       <div className="kpis">
         <div className="kpi"><span className="num">{win}–{draw}–{loss}</span><span className="l">won, drew, lost in 30 days</span></div>
-        <div className="kpi"><span className="num">{ins.sessions}</span><span className="l">training sessions this week</span></div>
-        <div className="kpi"><span className="num">{ins.adherence}%</span><span className="l">rehab done this week</span></div>
+        <div className="kpi"><span className="num">{ins.sessions}</span><span className="l">training sessions in the last 7 days</span></div>
+        <div className="kpi"><span className="num">{ins.adherence}%</span><span className="l">rehab done in the last 7 days</span></div>
       </div>
 
       <div className="cols">
@@ -67,7 +69,8 @@ export function InsightsScreen() {
       </div>
       <div className="col">
       <h2 className="h2">Past summaries</h2>
-      <div className="list">
+      {history.length === 0 && <div className="empty">Your daily summaries will show up here after your first full day.</div>}
+      <div className="list" hidden={history.length === 0}>
         {history.map((d) => {
           const sm = summary(s, d);
           return (

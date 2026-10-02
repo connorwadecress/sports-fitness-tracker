@@ -9,7 +9,7 @@ import { setLogPut } from "@/lib/domain/ops";
 
 export function ExerciseSheet({ id }: { id: string }) {
   const { snapshot: s } = useStore();
-  const { today, close, toast } = useApp();
+  const { today, close, toast, undoToast } = useApp();
   const ex = s.exercises.find((x) => x.id === id);
   if (!ex) return <><SheetHead title="Exercise" onClose={close} /><div className="sheet-body"><div className="empty">This exercise was removed.</div></div></>;
 
@@ -23,10 +23,9 @@ export function ExerciseSheet({ id }: { id: string }) {
     if (k > 0) toast(count === ex.sets ? `${ex.name} done for today` : `Set ${count} logged`);
   };
   const removeEx = () => {
-    if (!confirm(`Remove ${ex.name} from your programme? Its history is kept.`)) return;
     apply([{ c: "exercises", record: { ...ex, active: false, updatedAt: Date.now() } }]);
     close();
-    toast(`Removed ${ex.name}`);
+    undoToast(`Removed ${ex.name}`, () => apply([{ c: "exercises", record: { ...ex, active: true, updatedAt: Date.now() } }]));
   };
 
   return (

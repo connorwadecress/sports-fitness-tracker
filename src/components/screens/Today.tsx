@@ -52,7 +52,7 @@ export function TodayScreen() {
         <div className="tip"><p><b>{top.title}</b>{top.body}</p></div>
         <div style={{ gridColumn: "1/-1", display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button className="pillbtn pill-on-turf" type="button" onClick={() => open({ kind: "summary", date: today })}>Daily summary</button>
-          <button className="pillbtn pill-soft" type="button" onClick={() => open({ kind: "log", mode: "checkin" })}>Log how I feel</button>
+          <button className="pillbtn pill-soft" type="button" onClick={() => open({ kind: "log", mode: "checkin" })}>{logged.some((e) => e.isCheckIn) ? "Update how I feel" : "Log how I feel"}</button>
         </div>
       </section>
 

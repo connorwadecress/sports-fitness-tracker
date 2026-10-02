@@ -64,7 +64,7 @@ export function ExercisePicker({ s, selected, onToggle, custom, onAddCustom }: {
       <div className="panel" style={{ marginTop: 10, padding: 12 }}>
         <span className="lbl">Something else?</span>
         <label className="sr-only" htmlFor="cname">Exercise name</label>
-        <input ref={nameRef} id="cname" className="inp" placeholder="Exercise name" value={name} aria-invalid={!!error} aria-describedby={error ? "cname-err" : undefined}
+        <input ref={nameRef} id="cname" className="inp" maxLength={60} placeholder="Exercise name" value={name} aria-invalid={!!error} aria-describedby={error ? "cname-err" : undefined}
           onChange={(e) => { setName(e.target.value); if (error) setError(""); }} style={{ marginBottom: error ? 0 : 8 }} />
         {error && <p className="error" id="cname-err" style={{ marginBottom: 8 }}>{error}</p>}
         <div className="two" style={{ marginBottom: 8 }}>

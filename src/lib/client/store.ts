@@ -131,6 +131,13 @@ export function remove(c: CollectionName, id: string) {
   apply([{ c, record: { ...rec, deleted: true, updatedAt: Date.now(), ...(c === "exercises" ? { imageUrl: undefined } : {}) } } as Put]);
 }
 
+/** Undo a delete. */
+export function restore(c: CollectionName, id: string) {
+  const rec = state.data[c][id];
+  if (!rec?.deleted) return;
+  apply([{ c, record: { ...rec, deleted: false, updatedAt: Date.now() } } as Put]);
+}
+
 export function updateSettings(patch: Partial<Settings>) {
   const cur = state.snapshot.settings;
   apply([{ c: "settings", record: { ...cur, ...patch, reminders: { ...cur.reminders, ...patch.reminders }, id: "settings", updatedAt: Date.now() } }]);

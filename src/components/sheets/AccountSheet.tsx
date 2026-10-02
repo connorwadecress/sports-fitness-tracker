@@ -6,7 +6,8 @@ import { SheetHead } from "../ui";
 import { apply, clearDevice, sync, updateSettings, useStore } from "@/lib/client/store";
 import { currentEndpoint, disablePush, isStandalone } from "@/lib/client/push";
 import { canPromptInstall, onInstallChange, promptInstall } from "@/lib/client/install";
-import { toCsv } from "@/lib/domain/csv";
+import { toCsvTables } from "@/lib/domain/csv";
+import { zipFiles } from "@/lib/domain/zip";
 import { sampleData } from "@/lib/domain/seed";
 
 type Theme = "system" | "light" | "dark";
@@ -28,11 +29,13 @@ export function AccountSheet() {
   const [name, setName] = useState(s.settings.name ?? meta.account?.name ?? "");
   const empty = !s.events.length && !s.exercises.length && !s.injuries.length;
 
-  const exportCsv = () => {
-    const blob = new Blob([toCsv(s)], { type: "text/csv;charset=utf-8" });
+  // A zip with one CSV per table, plus a full JSON backup.
+  const exportData = () => {
+    const files = { ...toCsvTables(s), "pitchside-backup.json": JSON.stringify({ exportedAt: new Date().toISOString(), ...s }, null, 2) };
+    const blob = new Blob([zipFiles(files) as BlobPart], { type: "application/zip" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `pitchside-${today}.csv`;
+    a.download = `pitchside-${today}.zip`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
@@ -109,7 +112,7 @@ export function AccountSheet() {
 
         <h2 className="h2">Your data</h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <button className="pillbtn pill-ghost" type="button" onClick={exportCsv}>Export all data (CSV)</button>
+          <button className="pillbtn pill-ghost" type="button" onClick={exportData}>Export all data (CSV, zip)</button>
           {empty && <button className="pillbtn pill-ghost" type="button" onClick={() => { apply(sampleData(today)); close(); toast("Sample data loaded"); }}>Try it with sample data</button>}
           <a className="pillbtn pill-ghost" href="/privacy" style={{ textAlign: "center", textDecoration: "none", lineHeight: "22px" }}>Privacy and safety</a>
           <button className="pillbtn pill-danger" type="button" onClick={deleteAll}>{meta.mode === "account" ? "Delete account and all data" : "Delete all data on this device"}</button>

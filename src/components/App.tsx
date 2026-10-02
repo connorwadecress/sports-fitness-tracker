@@ -37,7 +37,7 @@ export default function App() {
   const today = now.date;
   const [tab, setTab] = useState<Tab>("today");
   const [sheet, setSheet] = useState<SheetSpec | null>(null);
-  const [toastMsg, setToastMsg] = useState<{ text: string; n: number } | null>(null);
+  const [toastMsg, setToastMsg] = useState<ToastMsg | null>(null);
   const [serverConfigured, setServerConfigured] = useState(false);
   const [calendar, setCalendar] = useState(() => { const p = parts(today); return { y: p.y, m: p.m, sel: today }; });
   const screenRef = useRef<HTMLElement>(null);
@@ -64,9 +64,15 @@ export default function App() {
     const t = setTimeout(() => setToastMsg({ text, n: Date.now() }), delayMs);
     toastTimers.current.push(t);
   }, []);
+  const undoToast = useCallback((text: string, undo: () => void) => setToastMsg({ text, n: Date.now(), undo }), []);
+  const clearToasts = useCallback(() => {
+    toastTimers.current.forEach(clearTimeout);
+    toastTimers.current = [];
+    setToastMsg(null);
+  }, []);
   useEffect(() => {
     if (!toastMsg) return;
-    const t = setTimeout(() => setToastMsg(null), 2200);
+    const t = setTimeout(() => setToastMsg(null), toastMsg.undo ? 5000 : 2200);
     return () => clearTimeout(t);
   }, [toastMsg]);
 
@@ -78,14 +84,15 @@ export default function App() {
   }, []);
 
   const api: AppApi = useMemo(() => ({
-    today, now, tab, go, toast, calendar, setCalendar, serverConfigured,
+    today, now, tab, go, toast, undoToast, calendar, setCalendar, serverConfigured,
     open: (s) => {
+      clearToasts(); // a toast must never cover the sheet it relates to
       // First visit to Reminders asks for notification permission (US-5.1); must run in the tap.
       if (s.kind === "reminders" && getState().meta.mode === "account" && wantsPushPrompt()) void enablePush();
       setSheet(s);
     },
     close: () => setSheet(null),
-  }), [today, now, tab, go, toast, calendar, serverConfigured]);
+  }), [today, now, tab, go, toast, undoToast, clearToasts, calendar, serverConfigured]);
 
   useEffect(() => {
     document.title = tab === "today" ? "Pitchside: hockey and recovery tracker" : `${TAB_LABELS[tab]} · Pitchside`;
@@ -131,7 +138,7 @@ export default function App() {
         <div className="stage"><div className="device">
           <Welcome />
           <SheetHost spec={sheet} />
-          <Toast msg={toastMsg} />
+          <Toast msg={toastMsg} onDone={() => setToastMsg(null)} />
         </div></div>
       </AppContext.Provider>
     );
@@ -158,7 +165,7 @@ export default function App() {
             <TabButton t="insights" label="Insights" icon="insights" current={tab} go={go} />
           </nav>
           <SheetHost spec={sheet} />
-          <Toast msg={toastMsg} />
+          <Toast msg={toastMsg} onDone={() => setToastMsg(null)} />
         </div>
       </div>
     </AppContext.Provider>
@@ -196,8 +203,15 @@ function TabButton({ t, label, icon, current, go }: { t: Tab; label: string; ico
   );
 }
 
-function Toast({ msg }: { msg: { text: string; n: number } | null }) {
+interface ToastMsg { text: string; n: number; undo?: () => void }
+
+function Toast({ msg, onDone }: { msg: ToastMsg | null; onDone: () => void }) {
   const [last, setLast] = useState("");
   if (msg && msg.text !== last) setLast(msg.text);
-  return <div className={`toast${msg ? " show" : ""}`} role="status" aria-live="polite">{msg?.text ?? last}</div>;
+  return (
+    <div className={`toast${msg ? " show" : ""}${msg?.undo ? " has-action" : ""}`} role="status" aria-live="polite">
+      <span>{msg?.text ?? last}</span>
+      {msg?.undo && <button type="button" onClick={() => { msg.undo!(); onDone(); }}>Undo</button>}
+    </div>
+  );
 }

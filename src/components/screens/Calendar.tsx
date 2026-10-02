@@ -7,6 +7,17 @@ import { useStore } from "@/lib/client/store";
 import { TYPES, TYPE_KEYS } from "@/lib/domain/constants";
 import { MONTHS, iso, nice, rel, weekday } from "@/lib/domain/dates";
 import { dayMood, eventsOn } from "@/lib/domain/derive";
+import type { EventType, PitchEvent } from "@/lib/domain/types";
+
+/** One dot per event type (all 5 fit), filled if any of that type was logged. */
+function dayDots(evs: PitchEvent[]) {
+  const out: { type: EventType; planned: boolean }[] = [];
+  for (const k of TYPE_KEYS) {
+    const of = evs.filter((e) => e.type === k);
+    if (of.length) out.push({ type: k, planned: of.every((e) => e.status === "planned") });
+  }
+  return out;
+}
 
 export function CalendarScreen() {
   const { snapshot: s } = useStore();
@@ -48,7 +59,7 @@ export function CalendarScreen() {
               <span className="d">{i + 1}</span>
               <span className="fs">{mood != null && <FeelShape mood={mood} size={22} />}</span>
               <span className="dots">
-                {evs.slice(0, 4).map((e) => <i key={e.id} className={e.status === "planned" ? "plan" : ""} style={{ background: TYPES[e.type!].color, color: TYPES[e.type!].color }} />)}
+                {dayDots(evs).map((x) => <i key={x.type} className={x.planned ? "plan" : ""} style={{ background: TYPES[x.type].color, color: TYPES[x.type].color }} />)}
               </span>
             </button>
           );

@@ -28,7 +28,7 @@ export function RehabScreen() {
         ? act.map((i) => <InjuryCard key={i.id} inj={i} s={s} today={today} />)
         : <div className="empty">No active injuries. Nice.<br />If you pick up a knock, switch it on when you log how you feel.</div>}
 
-      <h2 className="h2">This week <small>{pct}% of sets done</small></h2>
+      <h2 className="h2">Last 7 days <small>{pct}% of sets done</small></h2>
       <div className="panel">
         <div className="bar" style={{ margin: 0 }} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Rehab done this week"><i style={{ width: `${pct}%` }} /></div>
         <p className="small muted" style={{ margin: "10px 0 0" }}>Today: {reh.done} of {reh.target} daily sets. Strength exercises from your biokineticist count 3 days a week.</p>
@@ -78,14 +78,13 @@ function PastInjuries({ past }: { past: Injury[] }) {
 }
 
 function InjuryCard({ inj, s, today }: { inj: Injury; s: Snapshot; today: string }) {
-  const { toast } = useApp();
+  const { undoToast } = useApp();
   const days = daysBetween(inj.startDate, today);
   const pts = painSeries(s, inj).map((p) => p.pain);
   const sessions = treatmentSessions(s, inj);
   const recover = () => {
-    if (!confirm(`Mark ${inj.name} as recovered?`)) return;
     apply([{ c: "injuries", record: { ...inj, status: "recovered", recoveredDate: today, updatedAt: Date.now() } }]);
-    toast(`Great news. ${inj.name} marked as recovered`);
+    undoToast(`Great news. ${inj.name} marked as recovered`, () => apply([{ c: "injuries", record: { ...inj, updatedAt: Date.now() } }]));
   };
 
   let spark = null;
@@ -103,7 +102,7 @@ function InjuryCard({ inj, s, today }: { inj: Injury; s: Snapshot; today: string
 
   return (
     <div className="injury">
-      <h4>{inj.name}</h4>
+      <h4 className="wrap-any">{inj.name}</h4>
       <div className="meta">Day {days} since {short(inj.startDate)}. {sessions} treatment session{sessions === 1 ? "" : "s"}.</div>
       {spark && (
         <div style={{ marginTop: 12 }}>

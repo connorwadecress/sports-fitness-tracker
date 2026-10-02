@@ -4,6 +4,20 @@ A lightweight record of architecture decisions. Add newer entries at the top.
 
 ---
 
+## 2026-10-02: Fixes from the exploratory test report (PS-01 to PS-18)
+
+All 18 findings were addressed. Judgement calls where the report and the user story spec pull in different directions:
+
+- **Active minutes (PS-16):** the spec defines active minutes as including physio and biokineticist sessions, so the Today card and chart still count them. The training-load rules ("Big day, keep tomorrow light") now use matches, practice and own training only, so treatment time no longer skews advice.
+- **Quiet thresholds (PS-03):** the spec sets the summary rule at 3 quiet days and the reminder at 2 (adjustable), so both stay. Neither fires for a brand-new profile, and the summary rule needs 3 days of history first.
+- **Feelings (PS-04):** nothing is pre-selected. Unset mood is stored as `null`, and unset energy or soreness as `0`. Events saved with Skip, or with nothing set, store no feeling at all.
+- **Rest advice (PS-01):** a new rule, ranked just below high pain, says "take it easy today" when pain is 1 to 5, soreness is Sore or Very sore, or energy is Drained. It suppresses "Get moving" and the quiet nudge.
+- **Check-ins (PS-06):** one per day. "Log how I feel" reopens today's check-in pre-filled.
+- **Deletes (PS-15):** events, removed exercises and recovered injuries get an in-app Undo toast instead of `confirm()`. Account deletion keeps a confirmation, because it can't be undone.
+- **Export (PS-18):** a .zip with one CSV per table plus a full JSON backup, built by a small dependency-free zip writer (`src/lib/domain/zip.ts`).
+
+---
+
 ## 2026-10-02: Reminders sent by a GitHub Actions schedule
 
 **Context:** Reminders need minute-level timing (1 hour before an event, 17:00 rehab, 20:30 summary). Vercel Hobby cron jobs only run once a day.

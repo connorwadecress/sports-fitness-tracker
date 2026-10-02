@@ -5,7 +5,7 @@ import { createContext, useContext } from "react";
 export type Tab = "today" | "calendar" | "rehab" | "insights";
 
 export type SheetSpec =
-  | { kind: "log"; mode?: "plan" | "checkin"; date?: string; completeId?: string; type?: import("@/lib/domain/types").EventType }
+  | { kind: "log"; mode?: "plan" | "checkin"; date?: string; completeId?: string; editId?: string; type?: import("@/lib/domain/types").EventType }
   | { kind: "event"; id: string }
   | { kind: "exercise"; id: string }
   | { kind: "addExercise" }
@@ -22,6 +22,8 @@ export interface AppApi {
   open: (s: SheetSpec) => void;
   close: () => void;
   toast: (msg: string, delayMs?: number) => void;
+  /** A toast with an Undo button, shown for 5 seconds. */
+  undoToast: (msg: string, undo: () => void) => void;
   /** Calendar month view state, so planning can jump to a date. */
   calendar: { y: number; m: number; sel: string };
   setCalendar: (c: { y: number; m: number; sel: string }) => void;

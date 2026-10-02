@@ -2,14 +2,14 @@
 
 import { useApp } from "../context";
 import { FeelShape, Illustration, SheetHead, Tile } from "../ui";
-import { remove, useStore } from "@/lib/client/store";
+import { remove, restore, useStore } from "@/lib/client/store";
 import { ENERGY, SORENESS, TYPES, moodLabel } from "@/lib/domain/constants";
 import { nice } from "@/lib/domain/dates";
 import { activeMinutes, eventTitle } from "@/lib/domain/derive";
 
 export function EventSheet({ id }: { id: string }) {
   const { snapshot: s } = useStore();
-  const { today, open, close, toast } = useApp();
+  const { today, open, close, undoToast } = useApp();
   const e = s.events.find((x) => x.id === id);
   if (!e) {
     return <><SheetHead title="Event" onClose={close} /><div className="sheet-body"><div className="empty">This event was deleted.</div></div></>;
@@ -22,12 +22,12 @@ export function EventSheet({ id }: { id: string }) {
   const label = e.isCheckIn ? "Check-in" : e.type ? TYPES[e.type].label : "Event";
   const series = e.repeatGroupId ? s.events.filter((x) => x.repeatGroupId === e.repeatGroupId && x.status === "planned" && x.date >= e.date) : [];
 
+  // Delete straight away and offer Undo, rather than a browser confirm dialog.
   const del = (all = false) => {
     const targets = all ? series : [e];
-    if (!confirm(all ? `Delete this and the next ${targets.length - 1} weekly events?` : "Delete this event?")) return;
     for (const t of targets) remove("events", t.id);
     close();
-    toast("Deleted");
+    undoToast(targets.length > 1 ? `${targets.length} events deleted` : "Event deleted", () => targets.forEach((t) => restore("events", t.id)));
   };
 
   return (
@@ -36,7 +36,7 @@ export function EventSheet({ id }: { id: string }) {
       <div className="sheet-body">
         <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 16 }}>
           <Tile type={e.type} hollow={e.status === "planned"} checkIn={e.isCheckIn} />
-          <h2 style={{ margin: 0, fontSize: 22, fontStretch: "110%", fontWeight: 750 }}>{eventTitle(e, s)}</h2>
+          <h2 className="wrap-any" style={{ margin: 0, fontSize: 22, fontStretch: "110%", fontWeight: 750 }}>{eventTitle(e, s)}</h2>
         </div>
         <dl className="kv">
           <dt>When</dt><dd>{nice(e.date)}, {e.time}</dd>
@@ -52,14 +52,14 @@ export function EventSheet({ id }: { id: string }) {
           <>
             <h2 className="h2">How you felt</h2>
             <div className="panel" style={{ display: "flex", gap: 16, alignItems: "center" }}>
-              <FeelShape mood={f.mood} size={78} />
+              <span style={{ color: "var(--muted)" }}><FeelShape mood={f.mood} size={78} /></span>
               <div>
-                <b style={{ fontSize: 18 }}>{moodLabel(f.mood)}</b>
+                <b style={{ fontSize: 18 }}>{f.mood == null ? "Mood not set" : moodLabel(f.mood)}</b>
                 <div className="small muted" style={{ marginTop: 4, lineHeight: 1.5 }}>
-                  Energy: {ENERGY[f.energy - 1]}<br />Soreness: {SORENESS[f.soreness - 1]}
+                  Energy: {ENERGY[f.energy - 1] ?? "not set"}<br />Soreness: {SORENESS[f.soreness - 1] ?? "not set"}
                   {f.inPain && <><br />Pain: {f.pain}/10, {f.bodyPart}</>}
                 </div>
-                {f.note && <p className="small" style={{ margin: "6px 0 0" }}>{f.note}</p>}
+                {f.note && <p className="small wrap-any" style={{ margin: "6px 0 0" }}>{f.note}</p>}
               </div>
             </div>
           </>
@@ -84,8 +84,9 @@ export function EventSheet({ id }: { id: string }) {
         )}
       </div>
       <div className="sheet-foot">
-        {e.status === "planned" && e.date <= today && <button className="pillbtn pill-turf" type="button" onClick={() => open({ kind: "log", completeId: e.id })}>Log it</button>}
         <button className="pillbtn pill-danger" type="button" onClick={() => del()}>Delete</button>
+        <button className="pillbtn pill-ghost" type="button" onClick={() => open({ kind: "log", editId: e.id })}>Edit</button>
+        {e.status === "planned" && e.date <= today && <button className="pillbtn pill-turf" type="button" onClick={() => open({ kind: "log", completeId: e.id })}>Log it</button>}
       </div>
     </>
   );

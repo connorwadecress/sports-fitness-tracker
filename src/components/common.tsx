@@ -14,7 +14,7 @@ export function EventRow({ e, s, sub }: { e: PitchEvent; s: Snapshot; sub?: stri
         <span className="t">{eventTitle(e, s)}</span>
         <span className="s">{sub ?? eventSubtitle(e)}</span>
       </span>
-      {e.feel && <FeelShape mood={e.feel.mood} size={32} />}
+      {e.feel?.mood != null && <FeelShape mood={e.feel.mood} size={32} />}
     </button>
   );
 }
